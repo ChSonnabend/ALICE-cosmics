@@ -1141,7 +1141,7 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
                 for(Int_t i_track = 0; i_track < (Int_t)vec_TV3_dir.size(); i_track++)
                 {
                     TVector3 TV3_dca_ITS_hit = calculateDCA_vec_StraightToPoint(vec_TV3_base[i_track],vec_TV3_dir[i_track],TV3_ITS_hit);
-                    if(fabs(TV3_dca_ITS_hit.Z()) < 6.0 && TV3_dca_ITS_hit.Perp() < 3.0)
+                    if(fabs(TV3_dca_ITS_hit.Z()) < 50.0 && TV3_dca_ITS_hit.Perp() < 1.5)
                     {
                         if(vec_N_TPC_clusters[i_track] > 30)
                         {
