@@ -74,6 +74,7 @@ static TGNumberEntry* gChipID;
 
 o2::itsmft::TopologyDictionary dict;
 
+std::string geomDir = "/lustre/alice/ctf/scripts/ALICE-cosmics";
 
 // o2::tpc::TrackDump::ClusterNativeAdd::loadCorrMaps("./spline/TPC/Calib/CorrectionMap/TPCFastTransform_VoxRes_0_2cm_in_XYZ.root")
 
@@ -524,7 +525,7 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
     TFile* file_ITS_noisy_pixels;
     Float_t NITS_id, NITS_row, NITS_col;
 
-    TFile* inputfile = TFile::Open("./file_ITS_noisy_pixels.root");
+    TFile* inputfile = TFile::Open((geomDir + "/file_ITS_noisy_pixels.root").c_str());
     TTree *input_tree = (TTree*)inputfile->Get("ITS_noisy");
     Float_t NITS_in_id, NITS_in_row, NITS_in_col;
     input_tree->SetBranchAddress("id",&NITS_in_id);
@@ -573,19 +574,19 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
     gsl::span<CompClusterExt> mClusters;
 
     // Geometry
-    o2::base::GeometryManager::loadGeometry("o2sim_geometry-aligned.root");
+    o2::base::GeometryManager::loadGeometry((geomDir + "/o2sim_geometry-aligned.root").c_str());
     auto gman = o2::its::GeometryTGeo::Instance();
     gman->fillMatrixCache(o2::math_utils::bit2Mask(o2::math_utils::TransformType::T2L, o2::math_utils::TransformType::T2GRot,
                                                    o2::math_utils::TransformType::L2G));
 
     // https://github.com/AliceO2Group/AliceO2/blob/8397b143cb59d8df5c95ed70ea76b7f87f132d2b/EventVisualisation/Workflow/README.md
     // https://alice.its.cern.ch/jira/browse/O2-2288  -> ITSdictionary.bin
-    dict.readFromFile(o2::base::DetectorNameConf::getAlpideClusterDictionaryFileName(o2::detectors::DetID::ITS));
+    dict.readFromFile((geomDir + "/ITSdictionary.bin").c_str());
 
     Long64_t entries = ITSclstree ->GetEntries();
 
     std::vector<o2::dataformats::TFIDInfo>* tfids = nullptr;
-    TFile* fInTFID = TFile::Open("o2_tfidinfo.root");
+    TFile* fInTFID = TFile::Open((geomDir + "o2_tfidinfo.root").c_str());
     if (fInTFID) {
         // for a simulation this file is not available
         tfids = (std::vector<o2::dataformats::TFIDInfo>*) fInTFID->Get("tfidinfo");

@@ -1,11 +1,12 @@
-
-
-R__LOAD_LIBRARY(dumpClusters_cxx.so);
+R__LOAD_LIBRARY(/lustre/alice/ctf/scripts/ALICE-cosmics/dumpClusters_C.so);
 
 void run_dumpClusters()
 {
     printf("run_dumpClusters started \n");
-    gSystem ->Load("dumpClusters_cxx.so");
-    dumpClustersFromTracksITS("/Users/aschmah/alice/TPC_calibration/reco/tpctracksC.root","/Users/aschmah/alice/TPC_calibration/reco/tpc-native-clustersC.root","/Users/aschmah/alice/TPC_calibration/reco/o2clus_itsC.root");
+    gSystem ->Load("/lustre/alice/ctf/scripts/ALICE-cosmics/dumpClusters_C.so");
+    const char* directory = gSystem->Getenv("DIRECTORY_FILES");
+    std::string tracks=directory, native=directory, clus_its=directory;
+    tracks+="/tpctracks.root"; native+="/tpc-native-clusters.root"; clus_its+="/o2clus_its.root";
+    dumpClustersFromTracksITS(tracks,native,clus_its);
 
 }
