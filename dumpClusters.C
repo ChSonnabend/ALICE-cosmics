@@ -1,5 +1,5 @@
 #define GPUCA_TPC_GEOMETRY_O2
-#include <fmt/format.h>
+//#include <fmt/format.h>
 #include "DataFormatsTPC/TrackTPC.h"
 #include "DataFormatsTPC/ClusterNative.h"
 #include "DataFormatsTPC/ClusterNativeHelper.h"
@@ -154,7 +154,7 @@ void dumpClusters(std::string_view file = "tpc-native-clusters.root")
         h_cluster_radius   ->Fill(radius);
     }
 
-    fmt::print("Read event {} with {} converted clusters\n", i, clInfos.size());
+    //fmt::print("Read event {} with {} converted clusters\n", i, clInfos.size());
 
     pcstream << "cl"
              << "cls=" << clInfos
@@ -345,7 +345,7 @@ void dumpClustersFromTracks(std::string_view trackFile = "tpctracks.root", std::
 
       const size_t nTracks = tpcTracks->size();
 
-      fmt::print("Processing event {} with {} tracks ({} MC indices)\n", i, nTracks, clusterMCBuffer.first.getIndexedSize());
+      //fmt::print("Processing event {} with {} tracks ({} MC indices)\n", i, nTracks, clusterMCBuffer.first.getIndexedSize());
 
       ClExcludes excludes;
       // ---| track loop |---
@@ -635,7 +635,7 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
 
 
     //------------------------------------------------
-    TFile* outputfile = new TFile("Tree_Cluster_points_cosmics_V5b.root","RECREATE");
+    TFile* outputfile = new TFile("Tree_Cluster_points_cosmics_V5e.root","RECREATE");
     AlTPCCluster    *TPCCluster;
     AlITSHit        *ITSHit;
     AlTrack         *TPCTrack;
@@ -742,6 +742,8 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
             vec_TPC_cluster_info[5] = row;
             vec_TPC_clusters.push_back(vec_TPC_cluster_info);
 
+            //printf("TPC cluster time: %4.3f \n",time);
+
             //TPCCluster = TrackHitEvent->createTPCCluster();
             //TPCCluster ->set_cluster_pos_time(x,y,time);
             //TPCCluster ->set_track_id(id);
@@ -775,16 +777,11 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
             time0 = track.getTime0();
             //output_tree_tracks.Fill();
 
-            TPCTrack = TrackHitEvent->createTPCTrack();
-            TPCTrack ->set_track_id(k);
-            TPCTrack ->set_X(track.getX());
-            TPCTrack ->set_alpha(track.getAlpha());
-            TPCTrack ->set_par(track.getParam(0),track.getParam(1),track.getParam(2),track.getParam(3),track.getParam(4));
-            TPCTrack ->set_time0(track.getTime0());
-            TPCTrack ->clearTPCClusterList();
-
 
             int padrow_cls[152] = {0};
+            vector<Float_t> vec_cls_info_single;
+            vec_cls_info_single.resize(6); // x,y,time,track id,sector, padrow
+            vector< vector<Float_t> > vec_cls_info;
             for(int j = nCl - 1; j >= 0; j--)
             {
                 uint8_t sector, padrow;
@@ -816,12 +813,36 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
 
                 clInfo.trackID = k;
 
-                TPCCluster = TPCTrack->createTPCCluster();
-                TPCCluster ->set_cluster_pos_time(clInfo.gx(),clInfo.gy(),clInfo.getTime());
-                TPCCluster ->set_track_id(k);
-                TPCCluster ->set_sector(sector);
-                TPCCluster ->set_row(padrow);
+                vec_cls_info_single[0]  = clInfo.gx();
+                vec_cls_info_single[1]  = clInfo.gy();
+                vec_cls_info_single[2]  = clInfo.getTime();
+                vec_cls_info_single[3]  = k;
+                vec_cls_info_single[4]  = sector;
+                vec_cls_info_single[5]  = padrow;
+                vec_cls_info.push_back(vec_cls_info_single);
             }
+
+            if(fabs(vec_cls_info[0][2] - vec_cls_info[(Int_t)vec_cls_info.size()-1][2]) > 0.1) // if time between clusters is close to 0 its a noise track
+            {
+                TPCTrack = TrackHitEvent->createTPCTrack();
+                TPCTrack ->set_track_id(k);
+                TPCTrack ->set_X(track.getX());
+                TPCTrack ->set_alpha(track.getAlpha());
+                TPCTrack ->set_par(track.getParam(0),track.getParam(1),track.getParam(2),track.getParam(3),track.getParam(4));
+                TPCTrack ->set_time0(track.getTime0());
+                TPCTrack ->clearTPCClusterList();
+
+                for(Int_t i_cls = 0; i_cls < (Int_t)vec_cls_info.size(); i_cls++)
+                {
+                    TPCCluster = TPCTrack->createTPCCluster();
+                    TPCCluster ->set_cluster_pos_time(vec_cls_info[i_cls][0],vec_cls_info[i_cls][1],vec_cls_info[i_cls][2]);
+                    TPCCluster ->set_track_id((Int_t)vec_cls_info[i_cls][3]);
+                    TPCCluster ->set_sector((Int_t)vec_cls_info[i_cls][4]);
+                    TPCCluster ->set_row((Int_t)vec_cls_info[i_cls][5]);
+                }
+            }
+
+            vec_cls_info.clear();
 
             for(int ipad = 0; ipad < 152; ipad++)
             {
@@ -867,12 +888,17 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
         Int_t cls_size = mClusterBuffer ->size();
         Int_t ROF_size = mClustersROF   ->size();
         //printf("cls_size: %d \n",cls_size);
+        auto rof0 = (*mClustersROF)[0];
+        auto ir0 = rof0.getBCData();
+        int64_t time_in_BC0 = ir0.differenceInBC(o2::InteractionRecord{0, (*tfids)[i].firstTForbit});
+
         for(Int_t i_ROF = 0; i_ROF < ROF_size; i_ROF++) // ITS read out frames
         {
             auto rof = (*mClustersROF)[i_ROF];
             auto ir = rof.getBCData();
-            int64_t time_in_BC = (*tfids)[i].isDummy() ? ir.bc2ns() * 1e-3 : ir.differenceInBC(o2::InteractionRecord{0, (*tfids)[i].firstTForbit});
-            //printf("time_in_BC: %lld \n",time_in_BC);
+            // TFIDInfo.h
+            int64_t time_in_BC = (*tfids)[i].isDummy() ? ir.bc2ns() * 1e-3 : ir.differenceInBC(o2::InteractionRecord{0, (*tfids)[i].firstTForbit}) - time_in_BC0;
+            //printf("TF: %d, i_ROF: %d time_in_BC: %lld \n",i,i_ROF,time_in_BC);
 
             //std::cout << "Orbit: " << ir.orbit << "  BC: " << ir.bc << '\n';
             Int_t first = rof.getFirstEntry();
@@ -1018,6 +1044,8 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
             TV3_dir_trackB.SetXYZ(x_cls_B,y_cls_B,t_cls_B);
             TVector3 TV3_dir_track = TV3_dir_trackB - TV3_dir_trackA;
 
+            //if(fabs(t_cls_A - t_cls_B) < 0.1) continue; // noise track
+
             vec_TV3_dir.push_back(TV3_dir_track);
             vec_TV3_base.push_back(TV3_base_track);
             vec_N_TPC_clusters.push_back(NTPCCluster_track);
@@ -1075,12 +1103,12 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
             UShort_t col          =  (UShort_t)vec_ITS_hits[i_hit][5];
             UShort_t id           =  (UShort_t)vec_ITS_hits[i_hit][6];
 
-            Float_t  time_bin     = 400.0 + ((Float_t)BC_cls)/8.0;
+            Float_t  time_bin     = 400.0 + ((Float_t)BC_cls)/8.0; // 400.0
             if(id > max_ITS_chip_id) max_ITS_chip_id = id;
             if(row > max_ITS_row) max_ITS_row = row;
             if(col > max_ITS_col) max_ITS_col = col;
 
-           // printf("size: %d \n",(Int_t)vec_ITS_id_row_column_noisy[id][row].size());
+           //printf("size: %d \n",(Int_t)vec_ITS_id_row_column_noisy[id][row].size());
 
 #if 0
             if(id == 770 && row == 119 && col == 366)
@@ -1131,6 +1159,8 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
             vec_cls_point[1] = y_cls;
             vec_cls_point[2] = time_bin;
 
+            //printf("Accepted ITS hit: {%4.3f, %4.3f, %4.3f} \n",x_cls,y_cls,time_bin);
+
             TVector3 TV3_ITS_hit;
             TV3_ITS_hit.SetXYZ(x_cls,y_cls,time_bin);
             vec_TV3_ITS_hits.push_back(TV3_ITS_hit);
@@ -1141,7 +1171,7 @@ void dumpClustersFromTracksITS(std::string_view trackFile = "tpctracks.root", st
                 for(Int_t i_track = 0; i_track < (Int_t)vec_TV3_dir.size(); i_track++)
                 {
                     TVector3 TV3_dca_ITS_hit = calculateDCA_vec_StraightToPoint(vec_TV3_base[i_track],vec_TV3_dir[i_track],TV3_ITS_hit);
-                    if(fabs(TV3_dca_ITS_hit.Z()) < 50.0 && TV3_dca_ITS_hit.Perp() < 1.5)
+                    if(fabs(TV3_dca_ITS_hit.Z()) < 70.0 && TV3_dca_ITS_hit.Perp() < 1.5)
                     {
                         if(vec_N_TPC_clusters[i_track] > 30)
                         {
