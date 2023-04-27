@@ -2735,6 +2735,29 @@ TVector3 calculateDCA_vec_StraightToPoint(TVector3 &base, TVector3 &dir, TVector
 
 
 
+
+//----------------------------------------------------------------------------------------
+Float_t calculateDCA_vec_StraightToStraight(TVector3 &baseA, TVector3 &dirA, TVector3 &baseB, TVector3 &dirB)
+{
+    // https://en.wikipedia.org/wiki/Skew_lines#Nearest_points
+    // calculates the minimum distance between two 3D straight lines
+
+    TVector3 TV3_n  = dirA.Cross(dirB);
+    TVector3 TV3_n1 = dirA.Cross(TV3_n);
+    TVector3 TV3_n2 = dirB.Cross(TV3_n);
+    TVector3 TV3_c1 = baseA + ((baseB - baseA).Dot(TV3_n2)/(dirA.Dot(TV3_n2)))*dirA;
+    TVector3 TV3_c2 = baseB + ((baseA - baseB).Dot(TV3_n1)/(dirB.Dot(TV3_n1)))*dirB;
+
+    Float_t dca = (TV3_c1 - TV3_c2).Mag();
+
+    return dca;
+}
+//----------------------------------------------------------------------------------------
+
+
+
+
+
 //----------------------------------------------------------------------------------------
 Int_t get_HFT_det_index(Int_t sensor_id)
 {
