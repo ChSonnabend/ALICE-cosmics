@@ -60,8 +60,7 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     TPrincipal* PCA = new TPrincipal(3, "");
     int fill_index = 0;
     vector<int> tpc_ncls, event_num, num_ITS_hits;
-    vector<float> chi2_pca, chi2_pca_xy, chi2_pca_time;
-    vector<float> sigma_values = {0.22,0.22,0.7}; /// sigma_x = sigma_y = 1mm, sigma_time=2 
+    vector<float> chi2_pca, chi2_pca_xy, chi2_pca_time, sigma_values_tpc = {0.22,0.22,0.7}, sigma_values_its = {0.01,0.01,0.01}; /// sigma_x = sigma_y = 1mm, sigma_time=2 
     TChain* input_chain = NULL;
     input_chain = new TChain("TrackHitEvent" , "TrackHitEvent");
     //TString addfile = "./Data/Tree_Cluster_points_cosmics_V3.root";
@@ -120,7 +119,8 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     TH1D*   chi2_tracks_xy = new TH1D("chi2_tracks_xy", "chi2_tracks_xy", 500, 0, 50);
     TH1D*   chi2_tracks_time = new TH1D("chi2_tracks_time", "chi2_tracks_time", 500, 0, 50);
     TH1D*   residuals_DCA_ITS_histo = new TH1D("residuals_DCA_ITS", "residuals_DCA_ITS", 5000, 0, 10);
-    TH1D*   residuals_outliers_ITS_histo = new TH1D("residual_outliers_ITS", "residual_outliers_ITS", 5, 0, 1.2);
+    TH1D*   residuals_PCAfit_ITS_histo = new TH1D("residuals_PCAfit_ITS_histo", "residuals_PCAfit_ITS_histo", 5000, 0, 10);
+    TH1D*   chi2_PCAfit_ITS_histo = new TH1D("chi2_PCAfit_ITS_histo", "chi2_PCAfit_ITS_histo", 100, 0, 20);
     TGraph* tg_cls_y_vs_x = new TGraph();
     TGraph* tg_cls_x_vs_time = new TGraph();
     TGraph* tg_cls_y_vs_time = new TGraph();
@@ -402,6 +402,7 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
             TVector3 base; TVector3 direction;
             direction.SetXYZ(eigen[0][0],eigen[1][0],eigen[2][0]);
             base.SetXYZ(mean[0],mean[1],mean[2]);
+            PCA->Clear();
 
             chi2_pca.push_back(0);
             chi2_pca_xy.push_back(0);
@@ -411,9 +412,9 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 TPCCluster = TPCTrack->getTPCCluster(i);
                 current_point.SetXYZ(TPCCluster->get_cluster_x(), TPCCluster ->get_cluster_y(), TPCCluster ->get_cluster_time());
                 current_point = calculateDCA_vec_StraightToPoint(TV3_base_track,TV3_dir_track,current_point);
-                current_point[0] /= sigma_values[0];
-                current_point[1] /= sigma_values[1];
-                current_point[2] /= sigma_values[2];
+                current_point[0] /= sigma_values_tpc[0];
+                current_point[1] /= sigma_values_tpc[1];
+                current_point[2] /= sigma_values_tpc[2];
                 chi2_pca[fill_index] += (TMath::Power(current_point[0], 2) + TMath::Power(current_point[1], 2) + TMath::Power(current_point[2], 2))/(NTPCCluster_track-3);
                 chi2_pca_xy[fill_index] += (TMath::Power(current_point[0], 2) + TMath::Power(current_point[1], 2))/(NTPCCluster_track-2);
                 chi2_pca_time[fill_index] += (TMath::Power(current_point[2], 2))/(NTPCCluster_track-1);
@@ -479,9 +480,6 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 vec_tg_cls_y_vs_time.push_back((TGraph*)tg_cls_y_vs_time->Clone());
             }
 
-            // PCA->MakeHistograms();
-            PCA->Clear();
-
         }
 
         // TPC cluster loop -> not attached to tracks
@@ -509,7 +507,7 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
         // ITS loop
         Int_t N_good_ITS_hits   = 0;
         Int_t i_point_ITS_match = 0;
-        vector<TVector3> vec_TV3_ITS_hits, vec_TV3_ITS_hits_raw;
+        vector<TVector3> vec_TV3_ITS_hits, vec_TV3_ITS_hits_raw_multi, vec_TV3_ITS_hits_raw_unique;
         TVector3 TV3_ITS_hit, ITS_raw_hit;
         for(Int_t i_hit = 0; i_hit < NITSHit; i_hit++)
         {
@@ -546,7 +544,7 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
             TV3_ITS_hit.SetXYZ(x_cls,y_cls,time_bin);
             ITS_raw_hit.SetXYZ(x_cls,y_cls,z_cls);
             vec_TV3_ITS_hits.push_back(TV3_ITS_hit);
-            vec_TV3_ITS_hits_raw.push_back(ITS_raw_hit);
+            vec_TV3_ITS_hits_raw_multi.push_back(ITS_raw_hit);
             for(Int_t i_track = 0; i_track < (Int_t)vec_TV3_dir.size(); i_track++)
             {
                 TVector3 TV3_dca_ITS_hit = calculateDCA_vec_StraightToPoint(vec_TV3_base[i_track],vec_TV3_dir[i_track],TV3_ITS_hit);
@@ -577,33 +575,26 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
             }
         }
 
-        // cout << "Processing ITS hits" << endl; 
-        // vector<float> radii_ITS_hits, sorted_radii_indices;
+        /// Making the ITS hits unique
+        vec_TV3_ITS_hits_raw_unique = unique_ITS_hit(vec_TV3_ITS_hits_raw_multi);
+
+        /// Defining some variables
         TVector3 current_its_cluster;
         vector<TVector3> temp_its_clusters;
         vector<float> residuals_DCA_ITS, residual_DCA_XYZ_ITS, residuals_outliers_ITS;
         float max_distance=0, its_residual_dca=0; int id_hit1=0, id_hit2=0, counter_hit1=0, counter_hit2=0;
-        bool print_event = false;
+        bool print_event = true;
         Int_t found_outlier = 0;
         TVector3 ITS_outer_base, ITS_outer_dir;
-        if((Int_t)vec_TV3_ITS_hits_raw.size() > 6){
-            // for(int i_hit = 0; i_hit < (Int_t)vec_TV3_ITS_hits_raw.size(); i_hit++){
-            //     radii_ITS_hits.push_back(TMath::Sqrt(TMath::Power(vec_TV3_ITS_hits_raw[i_hit][0],2) + TMath::Power(vec_TV3_ITS_hits_raw[i_hit][1],2)));
-            // }
-            // sorted_radii_indices = sort_indices(radii_ITS_hits);
-            // cout << "Vector and sorting indices:" << endl;
-            // for(auto elem : sorted_radii_indices){
-            //     cout << elem << " ";
-            // }
-            // cout << endl;
-            // for(auto elem : radii_ITS_hits){
-            //     cout << elem << " ";
-            // }
-            // cout << endl;
+
+        /// CHEKING ITS HITS ///
+        if((Int_t)vec_TV3_ITS_hits_raw_unique.size() > 4){
+
+            /// Calculate straight line between outer most points and then DCA's ///
 
             // Calculate mutual distance and find two most distant points
-            for(auto hit1 : vec_TV3_ITS_hits_raw){
-                for(auto hit2 : vec_TV3_ITS_hits_raw){
+            for(auto hit1 : vec_TV3_ITS_hits_raw_unique){
+                for(auto hit2 : vec_TV3_ITS_hits_raw_unique){
                     if(max_distance<(hit1-hit2).Mag()){
                         max_distance = (hit1-hit2).Mag();
                         id_hit1 = counter_hit1;
@@ -614,58 +605,106 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 counter_hit2=0;
                 counter_hit1++;
             }
-            ITS_outer_dir.SetXYZ(vec_TV3_ITS_hits_raw[id_hit1][0]-vec_TV3_ITS_hits_raw[id_hit2][0],
-                                 vec_TV3_ITS_hits_raw[id_hit1][1]-vec_TV3_ITS_hits_raw[id_hit2][1],
-                                 vec_TV3_ITS_hits_raw[id_hit1][2]-vec_TV3_ITS_hits_raw[id_hit2][2]);
-            ITS_outer_base.SetXYZ(vec_TV3_ITS_hits_raw[id_hit1][0],
-                                  vec_TV3_ITS_hits_raw[id_hit1][1],
-                                  vec_TV3_ITS_hits_raw[id_hit1][2]);
+            ITS_outer_dir.SetXYZ(vec_TV3_ITS_hits_raw_unique[id_hit1][0]-vec_TV3_ITS_hits_raw_unique[id_hit2][0],
+                                 vec_TV3_ITS_hits_raw_unique[id_hit1][1]-vec_TV3_ITS_hits_raw_unique[id_hit2][1],
+                                 vec_TV3_ITS_hits_raw_unique[id_hit1][2]-vec_TV3_ITS_hits_raw_unique[id_hit2][2]);
+            ITS_outer_base.SetXYZ(vec_TV3_ITS_hits_raw_unique[id_hit1][0],
+                                  vec_TV3_ITS_hits_raw_unique[id_hit1][1],
+                                  vec_TV3_ITS_hits_raw_unique[id_hit1][2]);
 
-            for(Int_t hits_in_between = 0; hits_in_between<(Int_t)vec_TV3_ITS_hits_raw.size(); hits_in_between++){
-                current_its_cluster = vec_TV3_ITS_hits_raw[hits_in_between];
+            for(Int_t hits_ITS = 0; hits_ITS<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS++){
+                current_its_cluster = vec_TV3_ITS_hits_raw_unique[hits_ITS];
                 temp_its_clusters.push_back(current_its_cluster);
-                // current_its_cluster.SetZ(0);
                 its_residual_dca = calculateMinimumDistanceStraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster);
                 residual_DCA_XYZ_ITS.push_back(TMath::Abs(calculateDCA_vec_StraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster)[0]));
                 residual_DCA_XYZ_ITS.push_back(TMath::Abs(calculateDCA_vec_StraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster)[1]));
                 residual_DCA_XYZ_ITS.push_back(TMath::Abs(calculateDCA_vec_StraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster)[2]));
                 residuals_DCA_ITS.push_back(its_residual_dca);
                 residuals_DCA_ITS_histo->Fill(its_residual_dca);
-                if(its_residual_dca>0.04 && its_residual_dca<0.06){
-                    found_outlier=1; // cut can be adjusted
-                    print_event=true;
-                }
             }
+
             if(print_event){
+                cout << "Straight-line fit to outer-most points and DCA's to all hits:" << endl;
                 Int_t count_loop = 0;
-                for(Int_t hits_in_between = 0; hits_in_between<(Int_t)vec_TV3_ITS_hits_raw.size(); hits_in_between++){
+                for(Int_t hits_ITS = 0; hits_ITS<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS++){
                     cout << "DCA_total = " << residuals_DCA_ITS[count_loop] << "; DCA_X = " << residual_DCA_XYZ_ITS[3*count_loop + 0] << "; DCA_Y = " << residual_DCA_XYZ_ITS[3*count_loop +1] << "; DCA_Z = " << residual_DCA_XYZ_ITS[3*count_loop +2] << "; X = " << temp_its_clusters[count_loop][0] << "; Y = " << temp_its_clusters[count_loop][1] << "; Z = " << temp_its_clusters[count_loop][2] << endl;
                     count_loop++;
                 }
-                cout << "Total clusters ITS: " << count_loop/3 << endl;
+                cout << "Total clusters ITS: " << (Int_t)vec_TV3_ITS_hits_raw_unique.size() << endl;
             }
+
+            //////////////////////////////////////////////////////////////////////////////////////////
+
+
+            /// For n ITS hits calculate PCA between n-1 hits and DCA to last point ///
+
+            vector<float> event_dcas, chi2_values;
+            for(Int_t hits_ITS = 0; hits_ITS<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS++){
+
+                for(Int_t hits_ITS_except = 0; hits_ITS_except<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS_except++){
+                    if(hits_ITS_except!=hits_ITS){
+                        Double_t cluster[3] = {static_cast<Double_t>(vec_TV3_ITS_hits_raw_unique[hits_ITS_except][0]), static_cast<Double_t>(vec_TV3_ITS_hits_raw_unique[hits_ITS_except][1]), static_cast<Double_t>(vec_TV3_ITS_hits_raw_unique[hits_ITS_except][2])};
+                        PCA->AddRow(static_cast<Double_t*>(cluster));
+                        cout << "Filling matrix with: " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][0] << " " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][1] << " " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][2] << endl;
+                    }
+                }
+
+                float dca_x, dca_y, dca_z;
+                TVector3 base, direction, current_dca;
+
+                PCA->MakePrincipals();
+                TMatrixD eigen = *(PCA->GetEigenVectors());
+                TVectorD mean = *(PCA->GetMeanValues());
+                direction.SetXYZ(eigen[0][0],eigen[1][0],eigen[2][0]);
+                base.SetXYZ(mean[0],mean[1],mean[2]);
+                PCA->Clear();
+
+                current_dca = calculateDCA_vec_StraightToPoint(base,direction,vec_TV3_ITS_hits_raw_unique[hits_ITS]);
+                dca_x = TMath::Abs(current_dca[0]);
+                dca_y = TMath::Abs(current_dca[1]);
+                dca_z = TMath::Abs(current_dca[2]);
+                residuals_PCAfit_ITS_histo->Fill(current_dca.Mag());
+
+                event_dcas.push_back(current_dca.Mag());
+                event_dcas.push_back(dca_x);
+                event_dcas.push_back(dca_y);
+                event_dcas.push_back(dca_z);
+
+                residuals_PCAfit_ITS_histo->Fill(current_dca.Mag());
+
+                float chi2_pca = 0;
+                for(Int_t hits_ITS_except = 0; hits_ITS_except<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS_except++){
+                    if(hits_ITS_except!=hits_ITS){
+                        TVector3 dca_current_point = calculateDCA_vec_StraightToPoint(base,direction,vec_TV3_ITS_hits_raw_unique[hits_ITS_except]);
+                        dca_current_point[0] /= sigma_values_its[0];
+                        dca_current_point[1] /= sigma_values_its[1];
+                        dca_current_point[2] /= sigma_values_its[2];
+                        chi2_pca += TMath::Power(dca_current_point[0], 2) + TMath::Power(dca_current_point[1], 2) + TMath::Power(dca_current_point[2], 2);
+                    }
+                }
+                chi2_PCAfit_ITS_histo->Fill(chi2_pca/((Int_t)vec_TV3_ITS_hits_raw_unique.size()-1-3));
+                chi2_values.push_back(chi2_pca/((Int_t)vec_TV3_ITS_hits_raw_unique.size()-1-3));
+
+                if(current_dca.Mag()>0.03 && current_dca.Mag()<0.05){
+                    found_outlier=1;
+                }
+            }
+
+            if(print_event){
+                cout << "PCA fit to n-1 points and DCA to left-out point" << endl;
+                for(int lc = 0; lc<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); lc++){
+                    cout << "Chi2 = " << chi2_values[lc] << "; DCA_total = " << event_dcas[4*lc + 0] << "; DCA_X = " << event_dcas[4*lc + 1] << "; DCA_Y = " << event_dcas[4*lc + 2] << "; DCA_Z = " << event_dcas[4*lc + 3] << "; X = " << vec_TV3_ITS_hits_raw_unique[lc][0] << "; Y = " << vec_TV3_ITS_hits_raw_unique[lc][1] << "; Z = " << vec_TV3_ITS_hits_raw_unique[lc][2] << endl;
+                }
+                cout << "Total clusters ITS: " << (Int_t)vec_TV3_ITS_hits_raw_unique.size()<< endl;
+            }
+
+            //////////////////////////////////////////////////////////////////////////////////////////
+
         }
         else{
             residuals_DCA_ITS.push_back(-1);
-            // residuals_angles_ITS.push_back(10);
-            residuals_DCA_ITS_histo->Fill(-1);
-            // sresiduals_angles_ITS_histo->Fill(10);
         }
         residuals_outliers_ITS.push_back(found_outlier);
-        residuals_outliers_ITS_histo->Fill(found_outlier);
-        // if(found_outlier){
-        //     cout << its_residual_dca << endl;
-        //     for(auto elem : vec_TV3_ITS_hits_raw[id_hit1]){
-        //         cout << elem << " ";
-        //     }
-        //     cout << endl;
-        //     for(auto elem : vec_TV3_ITS_hits_raw[id_hit2]){
-        //         cout << elem << " ";
-        //     }
-        //     cout << endl;
-        // }
-        // radii_ITS_hits.clear(); sorted_radii_indices.clear();
-        //printf("N_good_ITS_hits: %d \n",N_good_ITS_hits);
 
 #if 0
         TVector3 TV3_base = vec_TV3_ITS_hits[6];
@@ -783,7 +822,8 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     Draw_1D_histo_and_canvas(chi2_tracks_xy, "chi2_tracks_xy", 720, 720, 720, 720, "");
     Draw_1D_histo_and_canvas(chi2_tracks_time, "chi2_tracks_time", 720, 720, 720, 720, "");
     Draw_1D_histo_and_canvas(residuals_DCA_ITS_histo, "residuals_DCA_ITS_histo", 720, 720, 720, 720, "");
-    Draw_1D_histo_and_canvas(residuals_outliers_ITS_histo, "residuals_outliers_ITS_histo", 720, 720, 720, 720, "");
+    Draw_1D_histo_and_canvas(residuals_PCAfit_ITS_histo, "residuals_PCAfit_ITS_histo", 720, 720, 720, 720, "");
+    Draw_1D_histo_and_canvas(chi2_PCAfit_ITS_histo, "chi2_PCAfit_ITS_histo", 720, 720, 720, 720, "");
 
     h_cls_y_vs_x ->GetXaxis()->SetTitle("x (cm)");
     h_cls_y_vs_x ->GetYaxis()->SetTitle("y (cm)");

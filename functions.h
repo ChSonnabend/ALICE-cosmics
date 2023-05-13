@@ -2743,6 +2743,33 @@ TVector3 calculateDCA_vec_StraightToPoint_perD(TVector3 &base, TVector3 &dir, TV
 //----------------------------------------------------------------------------------------
 
 
+//----------------------------------------------------------------------------------------
+vector<TVector3> unique_ITS_hit(vector<TVector3> in) {
+
+    vector<TVector3> out;
+    for(auto elem_in : in){
+        if(out.empty()){
+            out.push_back(elem_in);
+        }
+        else{
+            bool add_current_elem = true;
+            for(auto elem_out : out){
+                if(elem_out[0]==elem_in[0]){
+                    if(elem_out[1]==elem_in[1]){
+                        if(elem_out[2]==elem_in[2]){
+                            add_current_elem = false;
+                        }
+                    }
+                }
+            }
+            if(add_current_elem) out.push_back(elem_in);
+        }
+    }
+    return out;
+}
+//----------------------------------------------------------------------------------------
+
+
 
 //----------------------------------------------------------------------------------------
 Float_t calculateDCA_vec_StraightToStraight(TVector3 &baseA, TVector3 &dirA, TVector3 &baseB, TVector3 &dirB)
