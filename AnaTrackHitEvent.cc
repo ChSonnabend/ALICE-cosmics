@@ -66,7 +66,7 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     //TString addfile = "./Data/Tree_Cluster_points_cosmics_V3.root";
     //TString addfile = "./Data/Tree_Cluster_points_cosmics_V5c.root";
     //TString addfile = "./Data/Tree_Cluster_points_cosmics_V5e.root";
-    TString addfile = "./Data/IchFindAlexToll.root";
+    TString addfile = "./Data/IchFindAlexToll1100.root";
     input_chain ->AddFile(addfile.Data(),-1,"TrackHitEvent");
     Long64_t file_entries = input_chain->GetEntries();
     printf("entries: %lld \n",file_entries);
@@ -121,6 +121,9 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     TH1D*   residuals_DCA_ITS_histo = new TH1D("residuals_DCA_ITS", "residuals_DCA_ITS", 5000, 0, 10);
     TH1D*   residuals_PCAfit_ITS_histo = new TH1D("residuals_PCAfit_ITS_histo", "residuals_PCAfit_ITS_histo", 5000, 0, 10);
     TH1D*   chi2_PCAfit_ITS_histo = new TH1D("chi2_PCAfit_ITS_histo", "chi2_PCAfit_ITS_histo", 100, 0, 20);
+    TNtuple *residuals_ITS_dx = new TNtuple("residuals_ITS_dx", "residuals_ITS_dx", "x:y:dcax:color");
+    TNtuple *residuals_ITS_dy = new TNtuple("residuals_ITS_dy", "residuals_ITS_dy", "x:y:dcay:color");
+    TNtuple *residuals_ITS_dz = new TNtuple("residuals_ITS_dz", "residuals_ITS_dz", "x:y:dcaz:color");
     TGraph* tg_cls_y_vs_x = new TGraph();
     TGraph* tg_cls_x_vs_time = new TGraph();
     TGraph* tg_cls_y_vs_time = new TGraph();
@@ -645,7 +648,7 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                     if(hits_ITS_except!=hits_ITS){
                         Double_t cluster[3] = {static_cast<Double_t>(vec_TV3_ITS_hits_raw_unique[hits_ITS_except][0]), static_cast<Double_t>(vec_TV3_ITS_hits_raw_unique[hits_ITS_except][1]), static_cast<Double_t>(vec_TV3_ITS_hits_raw_unique[hits_ITS_except][2])};
                         PCA->AddRow(static_cast<Double_t*>(cluster));
-                        cout << "Filling matrix with: " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][0] << " " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][1] << " " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][2] << endl;
+                        // cout << "Filling matrix with: " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][0] << " " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][1] << " " << vec_TV3_ITS_hits_raw_unique[hits_ITS_except][2] << endl;
                     }
                 }
 
@@ -664,6 +667,10 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 dca_y = TMath::Abs(current_dca[1]);
                 dca_z = TMath::Abs(current_dca[2]);
                 residuals_PCAfit_ITS_histo->Fill(current_dca.Mag());
+
+                if(dca_x < 0.1) residuals_ITS_dx->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], dca_x, dca_x);
+                if(dca_y < 0.1) residuals_ITS_dy->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], dca_y, dca_y);
+                if(dca_z < 0.1) residuals_ITS_dz->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], dca_z, dca_z);
 
                 event_dcas.push_back(current_dca.Mag());
                 event_dcas.push_back(dca_x);
@@ -824,6 +831,10 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     Draw_1D_histo_and_canvas(residuals_DCA_ITS_histo, "residuals_DCA_ITS_histo", 720, 720, 720, 720, "");
     Draw_1D_histo_and_canvas(residuals_PCAfit_ITS_histo, "residuals_PCAfit_ITS_histo", 720, 720, 720, 720, "");
     Draw_1D_histo_and_canvas(chi2_PCAfit_ITS_histo, "chi2_PCAfit_ITS_histo", 720, 720, 720, 720, "");
+
+    Draw_2D_ntuple_and_canvas(residuals_ITS_dx, "residuals_ITS_dx", 1000, 1000, "x:y:dcax");
+    Draw_2D_ntuple_and_canvas(residuals_ITS_dy, "residuals_ITS_dy", 1000, 1000, "x:y:dcay");
+    Draw_2D_ntuple_and_canvas(residuals_ITS_dz, "residuals_ITS_dz", 1000, 1000, "x:y:dcaz");
 
     h_cls_y_vs_x ->GetXaxis()->SetTitle("x (cm)");
     h_cls_y_vs_x ->GetYaxis()->SetTitle("y (cm)");

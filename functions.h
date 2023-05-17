@@ -5159,6 +5159,29 @@ TCanvas* Draw_2D_histo_and_canvas(TH2D* hist, TString name, Int_t x_size, Int_t 
 //----------------------------------------------------------------------------------------
 
 
+//----------------------------------------------------------------------------------------
+TCanvas* Draw_2D_ntuple_and_canvas(TNtuple* ntuple, TString name, Int_t x_size, Int_t y_size, TString option)
+{
+    TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
+    // canvas->SetFillColor(10);
+    canvas->SetTopMargin(0.05);
+    canvas->SetBottomMargin(0.2);
+    canvas->SetRightMargin(0.22);
+    canvas->SetLeftMargin(0.2);
+    canvas->SetTicks(1,1);
+    canvas->SetGrid(0,0);
+    gStyle->SetPalette(kRainBow);
+
+    ntuple->SetMarkerStyle(8);
+    ntuple->SetMarkerSize(1);
+    ntuple->SetTitle("");
+    ntuple->Draw(option.Data(), "", "colz");
+
+    return canvas;
+}
+//----------------------------------------------------------------------------------------
+
+
 
 //----------------------------------------------------------------------------------------
 TCanvas* Draw_1D_histo_and_canvas(TH1D* hist, TString name, Int_t x_size, Int_t y_size,
