@@ -5136,7 +5136,7 @@ TCanvas* Draw_2D_histo_and_canvas(TH2D* hist, TString name, Int_t x_size, Int_t 
     canvas->SetFillColor(10);
     canvas->SetTopMargin(0.05);
     canvas->SetBottomMargin(0.2);
-    canvas->SetRightMargin(0.22);
+    canvas->SetRightMargin(0.2);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);
@@ -5165,7 +5165,7 @@ TCanvas* Draw_2D_ntuple_and_canvas(TNtuple* ntuple, TString name, Int_t x_size, 
     TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
     // canvas->SetFillColor(10);
     canvas->SetTopMargin(0.05);
-    canvas->SetBottomMargin(0.2);
+    canvas->SetBottomMargin(0.25);
     canvas->SetRightMargin(0.22);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
@@ -5173,7 +5173,7 @@ TCanvas* Draw_2D_ntuple_and_canvas(TNtuple* ntuple, TString name, Int_t x_size, 
     gStyle->SetPalette(kRainBow);
 
     ntuple->SetMarkerStyle(8);
-    ntuple->SetMarkerSize(1);
+    ntuple->SetMarkerSize(0.7);
     ntuple->SetTitle("");
     ntuple->Draw(option.Data(), "", "colz");
 
@@ -5189,9 +5189,9 @@ TCanvas* Draw_1D_histo_and_canvas(TH1D* hist, TString name, Int_t x_size, Int_t 
 {
     TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
     canvas->SetFillColor(10);
-    canvas->SetTopMargin(0.1);
-    canvas->SetBottomMargin(0.2);
-    canvas->SetRightMargin(0.05);
+    canvas->SetTopMargin(.1);
+    canvas->SetBottomMargin(0.215);
+    canvas->SetRightMargin(0.15);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);
@@ -5199,7 +5199,7 @@ TCanvas* Draw_1D_histo_and_canvas(TH1D* hist, TString name, Int_t x_size, Int_t 
     hist->SetStats(0);
     hist->SetTitle("");
     hist->GetXaxis()->SetTitleOffset(1.2);
-    hist->GetYaxis()->SetTitleOffset(1.2);
+    hist->GetYaxis()->SetTitleOffset(1.5);
     hist->GetXaxis()->SetLabelSize(0.06);
     hist->GetYaxis()->SetLabelSize(0.06);
     hist->GetXaxis()->SetTitleSize(0.06);
@@ -5226,8 +5226,8 @@ TCanvas* Draw_1D_graph_and_canvas(TGraph* hist, TString name, Int_t x_size, Int_
     TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
     canvas->SetFillColor(10);
     canvas->SetTopMargin(0.1);
-    canvas->SetBottomMargin(0.2);
-    canvas->SetRightMargin(0.05);
+    canvas->SetBottomMargin(0.5);
+    canvas->SetRightMargin(0.5);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);
@@ -5263,8 +5263,8 @@ TCanvas* Draw_1D_profile_and_canvas(TProfile* hist, TString name, Int_t x_size, 
     TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
     canvas->SetFillColor(10);
     canvas->SetTopMargin(0.1);
-    canvas->SetBottomMargin(0.2);
-    canvas->SetRightMargin(0.05);
+    canvas->SetBottomMargin(0.25);
+    canvas->SetRightMargin(0.25);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);

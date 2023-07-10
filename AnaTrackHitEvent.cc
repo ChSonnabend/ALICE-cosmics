@@ -31,7 +31,7 @@ vector<float> sort_indices(const vector<T> &v) {
   return idx;
 }
 
-void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_ITS_noisy = 0)
+void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_ITS_noisy = 0, bool saveToTree = true)
 {
     // To analyze cosmics events, output from dumpClusters.C
     //.L AnaTrackHitEvent.cc++
@@ -40,6 +40,8 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     // AnaTrackHitEvent(-2,1,0) -> central membrane, misalignment?
     // AnaTrackHitEvent(-2,23,0) -> central membrane, misalignment?
     // AnaTrackHitEvent(-2,26,0) -> central membrane, misalignment?
+
+    saveToTree = saveToTree && (N_events==-1);
 
 
     printf("AnaTrackHitEvent started \n");
@@ -111,19 +113,41 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
 
 
     //------------------------------------------------------------
+
+    TFile* qafileITSTPC = new TFile("QA_tree.root","RECREATE","Tree with QA histograms and data");
+    TTree* data_tree_TPC = new TTree("TPC","TPC alignment QA");
+    TTree* data_tree_ITS = new TTree("ITS","ITS alignment QA");
+
     TH2D*   h_cls_y_vs_x  = new TH2D("h_cls_y_vs_x","h_cls_y_vs_x",1000,-250,250,1000,-250,250);
     TH2D*   h_cls_y_vs_x_coarse  = new TH2D("h_cls_y_vs_x_coarse","h_cls_y_vs_x_coarse",300,-250,250,300,-250,250);
+
     TH1D*   angle_dist = new TH1D("angle_dist", "angle_dist", 10000, 0, TMath::Pi());
     TH1D*   outlier_events = new TH1D("outlier_events", "outlier_events", 50000, 0, 50000);
-    TH1D*   chi2_tracks = new TH1D("chi2_tracks", "chi2_tracks", 500, 0, 50);
-    TH1D*   chi2_tracks_xy = new TH1D("chi2_tracks_xy", "chi2_tracks_xy", 500, 0, 50);
-    TH1D*   chi2_tracks_time = new TH1D("chi2_tracks_time", "chi2_tracks_time", 500, 0, 50);
-    TH1D*   residuals_DCA_ITS_histo = new TH1D("residuals_DCA_ITS", "residuals_DCA_ITS", 5000, 0, 10);
+    TH1D*   chi2_TPC_tracks = new TH1D("chi2_TPC_tracks", "chi2_TPC_tracks", 500, 0, 50);
+    TH1D*   chi2_TPC_tracks_xy = new TH1D("chi2_TPC_tracks_xy", "chi2_TPC_tracks_xy", 500, 0, 50);
+    TH1D*   chi2_TPC_tracks_time = new TH1D("chi2_TPC_tracks_time", "chi2_TPC_tracks_time", 500, 0, 50);
+    TH1D*   residuals_2Point_ITS_histo = new TH1D("residuals_2Point_ITS_histo", "residuals_2Point_ITS_histo", 5000, 0, 10);
     TH1D*   residuals_PCAfit_ITS_histo = new TH1D("residuals_PCAfit_ITS_histo", "residuals_PCAfit_ITS_histo", 5000, 0, 10);
     TH1D*   chi2_PCAfit_ITS_histo = new TH1D("chi2_PCAfit_ITS_histo", "chi2_PCAfit_ITS_histo", 100, 0, 20);
     TNtuple *residuals_ITS_dx = new TNtuple("residuals_ITS_dx", "residuals_ITS_dx", "x:y:dcax:color");
     TNtuple *residuals_ITS_dy = new TNtuple("residuals_ITS_dy", "residuals_ITS_dy", "x:y:dcay:color");
     TNtuple *residuals_ITS_dz = new TNtuple("residuals_ITS_dz", "residuals_ITS_dz", "x:y:dcaz:color");
+    TNtuple *residuals_ITS_dr = new TNtuple("residuals_ITS_dr", "residuals_ITS_dr", "x:y:dcar:color");
+    TNtuple *residuals_ITS_full = new TNtuple("residuals_ITS_full", "residuals_ITS_full", "x:y:z:dca_x:dca_y:dca_z:chi2:n_points");
+
+    if(saveToTree){
+        data_tree_TPC->Branch("outlier_events","TH1D",&outlier_events,128000,0);
+        data_tree_TPC->Branch("angle_dist","TH1D",&angle_dist,128000,0);
+        data_tree_TPC->Branch("chi2_TPC_tracks","TH1D",&chi2_TPC_tracks,128000,0);
+        data_tree_TPC->Branch("chi2_TPC_tracks_xy","TH1D",&chi2_TPC_tracks_xy,128000,0);
+        data_tree_TPC->Branch("chi2_TPC_tracks_time","TH1D",&chi2_TPC_tracks_time,128000,0);
+        
+        data_tree_ITS->Branch("residuals_2Point_ITS_histo","TH1D",&residuals_2Point_ITS_histo,128000,0);
+        data_tree_ITS->Branch("residuals_PCAfit_ITS_histo","TH1D",&residuals_PCAfit_ITS_histo,128000,0);
+        data_tree_ITS->Branch("chi2_PCAfit_ITS_histo","TH1D",&chi2_PCAfit_ITS_histo,128000,0);
+        data_tree_ITS->Branch("residuals_ITS_full","TNtuple",&residuals_ITS_full,128000,0);
+    }
+
     TGraph* tg_cls_y_vs_x = new TGraph();
     TGraph* tg_cls_x_vs_time = new TGraph();
     TGraph* tg_cls_y_vs_time = new TGraph();
@@ -422,10 +446,11 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 chi2_pca_xy[fill_index] += (TMath::Power(current_point[0], 2) + TMath::Power(current_point[1], 2))/(NTPCCluster_track-2);
                 chi2_pca_time[fill_index] += (TMath::Power(current_point[2], 2))/(NTPCCluster_track-1);
             }
-            chi2_tracks->Fill(chi2_pca[fill_index]);
-            chi2_tracks_xy->Fill(chi2_pca_xy[fill_index]);
-            chi2_tracks_time->Fill(chi2_pca_time[fill_index]);
+            chi2_TPC_tracks->Fill(chi2_pca[fill_index]);
+            chi2_TPC_tracks_xy->Fill(chi2_pca_xy[fill_index]);
+            chi2_TPC_tracks_time->Fill(chi2_pca_time[fill_index]);
             fill_index++;
+            // if(saveToTree) data_tree_TPC->Fill();
 
 
             // cout << "--------------------------\n";
@@ -537,7 +562,6 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
             {
                 N_good_ITS_hits++;
             }
-            num_ITS_hits.push_back(N_good_ITS_hits);
 
             vec_cls_point[0] = x_cls;
             vec_cls_point[1] = y_cls;
@@ -578,13 +602,15 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
             }
         }
 
+        num_ITS_hits.push_back(N_good_ITS_hits);
+
         /// Making the ITS hits unique
         vec_TV3_ITS_hits_raw_unique = unique_ITS_hit(vec_TV3_ITS_hits_raw_multi);
 
         /// Defining some variables
         TVector3 current_its_cluster;
         vector<TVector3> temp_its_clusters;
-        vector<float> residuals_DCA_ITS, residual_DCA_XYZ_ITS, residuals_outliers_ITS;
+        vector<float> residuals_2Point_ITS, residual_DCA_XYZ_ITS, residuals_outliers_ITS;
         float max_distance=0, its_residual_dca=0; int id_hit1=0, id_hit2=0, counter_hit1=0, counter_hit2=0;
         bool print_event = true;
         Int_t found_outlier = 0;
@@ -592,8 +618,6 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
 
         /// CHEKING ITS HITS ///
         if((Int_t)vec_TV3_ITS_hits_raw_unique.size() > 4){
-
-            /// Calculate straight line between outer most points and then DCA's ///
 
             // Calculate mutual distance and find two most distant points
             for(auto hit1 : vec_TV3_ITS_hits_raw_unique){
@@ -615,34 +639,24 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                                   vec_TV3_ITS_hits_raw_unique[id_hit1][1],
                                   vec_TV3_ITS_hits_raw_unique[id_hit1][2]);
 
+            vector<float> event_dcas, chi2_values;
             for(Int_t hits_ITS = 0; hits_ITS<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS++){
+
+                /// Calculate straight line between outer most points and then DCA's ///
+
                 current_its_cluster = vec_TV3_ITS_hits_raw_unique[hits_ITS];
                 temp_its_clusters.push_back(current_its_cluster);
                 its_residual_dca = calculateMinimumDistanceStraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster);
                 residual_DCA_XYZ_ITS.push_back(TMath::Abs(calculateDCA_vec_StraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster)[0]));
                 residual_DCA_XYZ_ITS.push_back(TMath::Abs(calculateDCA_vec_StraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster)[1]));
                 residual_DCA_XYZ_ITS.push_back(TMath::Abs(calculateDCA_vec_StraightToPoint(ITS_outer_base,ITS_outer_dir,current_its_cluster)[2]));
-                residuals_DCA_ITS.push_back(its_residual_dca);
-                residuals_DCA_ITS_histo->Fill(its_residual_dca);
-            }
+                residuals_2Point_ITS.push_back(its_residual_dca);
+                residuals_2Point_ITS_histo->Fill(its_residual_dca);
 
-            if(print_event){
-                cout << "Straight-line fit to outer-most points and DCA's to all hits:" << endl;
-                Int_t count_loop = 0;
-                for(Int_t hits_ITS = 0; hits_ITS<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS++){
-                    cout << "DCA_total = " << residuals_DCA_ITS[count_loop] << "; DCA_X = " << residual_DCA_XYZ_ITS[3*count_loop + 0] << "; DCA_Y = " << residual_DCA_XYZ_ITS[3*count_loop +1] << "; DCA_Z = " << residual_DCA_XYZ_ITS[3*count_loop +2] << "; X = " << temp_its_clusters[count_loop][0] << "; Y = " << temp_its_clusters[count_loop][1] << "; Z = " << temp_its_clusters[count_loop][2] << endl;
-                    count_loop++;
-                }
-                cout << "Total clusters ITS: " << (Int_t)vec_TV3_ITS_hits_raw_unique.size() << endl;
-            }
-
-            //////////////////////////////////////////////////////////////////////////////////////////
+                //////////////////////////////////////////////////////////////////////////////////////////
 
 
-            /// For n ITS hits calculate PCA between n-1 hits and DCA to last point ///
-
-            vector<float> event_dcas, chi2_values;
-            for(Int_t hits_ITS = 0; hits_ITS<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS++){
+                /// For n ITS hits calculate PCA between n-1 hits and DCA to last point ///
 
                 for(Int_t hits_ITS_except = 0; hits_ITS_except<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS_except++){
                     if(hits_ITS_except!=hits_ITS){
@@ -671,6 +685,8 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 if(dca_x < 0.1) residuals_ITS_dx->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], dca_x, dca_x);
                 if(dca_y < 0.1) residuals_ITS_dy->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], dca_y, dca_y);
                 if(dca_z < 0.1) residuals_ITS_dz->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], dca_z, dca_z);
+                // if(dca_r < 0.1) residuals_ITS_dr->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], dca_r, dca_r);
+
 
                 event_dcas.push_back(current_dca.Mag());
                 event_dcas.push_back(dca_x);
@@ -691,13 +707,25 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 }
                 chi2_PCAfit_ITS_histo->Fill(chi2_pca/((Int_t)vec_TV3_ITS_hits_raw_unique.size()-1-3));
                 chi2_values.push_back(chi2_pca/((Int_t)vec_TV3_ITS_hits_raw_unique.size()-1-3));
+                // if(saveToTree) data_tree_ITS->Fill();
 
-                if(current_dca.Mag()>0.03 && current_dca.Mag()<0.05){
+                residuals_ITS_full->Fill(vec_TV3_ITS_hits_raw_unique[hits_ITS][0], vec_TV3_ITS_hits_raw_unique[hits_ITS][1], vec_TV3_ITS_hits_raw_unique[hits_ITS][2], current_dca[0], current_dca[1], current_dca[2], chi2_pca, (Int_t)vec_TV3_ITS_hits_raw_unique.size());
+
+                // if(current_dca.Mag()>0.03 && current_dca.Mag()<0.05){
+                if(true){
                     found_outlier=1;
                 }
             }
 
             if(print_event){
+                cout << "Straight-line fit to outer-most points and DCA's to all hits:" << endl;
+                Int_t count_loop = 0;
+                for(Int_t hits_ITS = 0; hits_ITS<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); hits_ITS++){
+                    cout << "DCA_total = " << residuals_2Point_ITS[count_loop] << "; DCA_X = " << residual_DCA_XYZ_ITS[3*count_loop + 0] << "; DCA_Y = " << residual_DCA_XYZ_ITS[3*count_loop +1] << "; DCA_Z = " << residual_DCA_XYZ_ITS[3*count_loop +2] << "; X = " << temp_its_clusters[count_loop][0] << "; Y = " << temp_its_clusters[count_loop][1] << "; Z = " << temp_its_clusters[count_loop][2] << endl;
+                    count_loop++;
+                }
+                cout << "Total clusters ITS: " << (Int_t)vec_TV3_ITS_hits_raw_unique.size() << endl;
+
                 cout << "PCA fit to n-1 points and DCA to left-out point" << endl;
                 for(int lc = 0; lc<(Int_t)vec_TV3_ITS_hits_raw_unique.size(); lc++){
                     cout << "Chi2 = " << chi2_values[lc] << "; DCA_total = " << event_dcas[4*lc + 0] << "; DCA_X = " << event_dcas[4*lc + 1] << "; DCA_Y = " << event_dcas[4*lc + 2] << "; DCA_Z = " << event_dcas[4*lc + 3] << "; X = " << vec_TV3_ITS_hits_raw_unique[lc][0] << "; Y = " << vec_TV3_ITS_hits_raw_unique[lc][1] << "; Z = " << vec_TV3_ITS_hits_raw_unique[lc][2] << endl;
@@ -709,7 +737,7 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
 
         }
         else{
-            residuals_DCA_ITS.push_back(-1);
+            residuals_2Point_ITS.push_back(-1);
         }
         residuals_outliers_ITS.push_back(found_outlier);
 
@@ -781,9 +809,10 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                 TVector3 TV3_dca_TPC_hit = calculateDCA_vec_StraightToPoint(vec_TV3_base[i_trackA],vec_TV3_dir[i_trackA],vec_TV3_base[i_trackB]);
                 Float_t dca_3D_lines = calculateDCA_vec_StraightToStraight(vec_TV3_base[i_trackA],vec_TV3_dir[i_trackA],vec_TV3_base[i_trackB],vec_TV3_dir[i_trackB]);
                 printf("tracks: {%d, %d}, perp dist: %4.3f, 3D dca: %4.3f \n",i_trackA,i_trackB,TV3_dca_TPC_hit.Perp(),dca_3D_lines);
-                //if(fabs(TV3_dca_TPC_hit.Z()) < 6.0 && TV3_dca_TPC_hit.Perp() < 3.0)
+                // if(fabs(TV3_dca_TPC_hit.Z()) < 6.0 && TV3_dca_TPC_hit.Perp() < 3.0)
                 // if(dca_3D_lines < 5.0 && tpc_ncls[i_trackA]>40 && tpc_ncls[i_trackB]>40 && (chi2_pca[i_trackA] < 5 || chi2_pca[i_trackB] < 5) && (num_ITS_hits[i_trackA] >= 5 || num_ITS_hits[i_trackB] >= 5))
-                if((residuals_outliers_ITS[i_trackA] == 1 || residuals_outliers_ITS[i_trackB] == 1))
+                // if((residuals_outliers_ITS[i_trackA] == 0 || residuals_outliers_ITS[i_trackB] == 0))
+                if(dca_3D_lines < 5.0 && tpc_ncls[i_trackA]>40 && tpc_ncls[i_trackB]>40 && (chi2_pca[i_trackA] < 5 || chi2_pca[i_trackB] < 5) && N_good_ITS_hits>5)
                 {
                     flag_good_TPC_match = 1;
                     printf("Good TPC-to-TPC match found! tracks: {%d, %d} \n",i_trackA,i_trackB);
@@ -792,7 +821,9 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
                     // if(angle < 0.1 && angle > 0.){
                     //     outlier_events->Fill(counter);
                     // }
-                    outlier_events->Fill(counter);
+                    if(angle>0.03 && angle<0.2){
+                        outlier_events->Fill(counter);
+                    }
                     angle_dist->Fill(angle);
                 }
             }
@@ -806,6 +837,47 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     //------------------------------------------------------------------------------
 
 
+    /// Beautifications
+
+    // angular distribution of TPC tracks
+    angle_dist->SetTitle("angle distribution between TPC tracks");
+    angle_dist->GetXaxis()->SetTitle("angle distribution [rad]");
+    angle_dist->GetYaxis()->SetTitle("counts");
+
+    // All outlier events passing the selection criteria
+    outlier_events->SetTitle("Outlier events passing the selection criteria");
+    outlier_events->GetXaxis()->SetTitle("Event [#]");
+    outlier_events->GetYaxis()->SetTitle("counts");
+
+    // Chi^2 of the TPC track fits (using base and dir vectors; either PCA or 2-point fit)
+    chi2_TPC_tracks->SetTitle("#chi^{2}_{red} of the TPC track fits");
+    chi2_TPC_tracks->GetXaxis()->SetTitle("#chi^{2}_{red}");
+    chi2_TPC_tracks->GetYaxis()->SetTitle("counts");
+
+    // Chi^2 of the TPC track fits (using base and dir vectors; either PCA or 2-point fit), only for xy coordinates
+    chi2_TPC_tracks_xy->SetTitle("#chi^{2}_{red} of the TPC track fits; only xy coordinates");
+    chi2_TPC_tracks_xy->GetXaxis()->SetTitle("#chi^{2}_{red} (xy)");
+    chi2_TPC_tracks_xy->GetYaxis()->SetTitle("counts");
+
+    // Chi^2 of the TPC track fits (using base and dir vectors; either PCA or 2-point fit), only for time coordinate
+    chi2_TPC_tracks_time->SetTitle("#chi^{2}_{red} of the TPC track fits; only time coordinate");
+    chi2_TPC_tracks_time->GetXaxis()->SetTitle("#chi^{2}_{red} (time)");
+    chi2_TPC_tracks_time->GetYaxis()->SetTitle("counts");
+
+    // Residual DCA - Track to ITS cluster, 2-point fit
+    residuals_2Point_ITS_histo->SetTitle("Residual DCA - Track to ITS cluster, 2 point");
+    residuals_2Point_ITS_histo->GetXaxis()->SetTitle("DCA [cm]");
+    residuals_2Point_ITS_histo->GetYaxis()->SetTitle("counts");
+
+    // Residual DCA - Track to ITS cluster, PCA
+    residuals_PCAfit_ITS_histo->SetTitle("Residual DCA - Track to ITS cluster, PCA");
+    residuals_PCAfit_ITS_histo->GetXaxis()->SetTitle("DCA [cm]");
+    residuals_PCAfit_ITS_histo->GetYaxis()->SetTitle("counts");
+
+    // Chi2 - Track to ITS cluster
+    chi2_PCAfit_ITS_histo->SetTitle("#chi^{2}_{red} - Track to ITS cluster, PCA");
+    chi2_PCAfit_ITS_histo->GetXaxis()->SetTitle("#chi^{2}_{red}");
+    chi2_PCAfit_ITS_histo->GetYaxis()->SetTitle("counts");
 
 
     printf("time: {%4.3f, %4.3f}, max_ITS_chip_id: %d, max_ITS_row: %d, max_ITS_col: %d, N_pixels_hit: %lld, N_noisy_ITS_pixels: %d \n",time_min,time_max,max_ITS_chip_id,max_ITS_row,max_ITS_col,N_pixels_hit,N_noisy_ITS_pixels);
@@ -820,15 +892,13 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     //------------------------------------------------------------
 
 
-
-
     //------------------------------------------------------------
     Draw_1D_histo_and_canvas(angle_dist, "angular_distribution", 720, 720, 720, 720, "");
     Draw_1D_histo_and_canvas(outlier_events, "outlier_events", 720, 720, 720, 720, "");
-    Draw_1D_histo_and_canvas(chi2_tracks, "chi2_tracks", 720, 720, 720, 720, "");
-    Draw_1D_histo_and_canvas(chi2_tracks_xy, "chi2_tracks_xy", 720, 720, 720, 720, "");
-    Draw_1D_histo_and_canvas(chi2_tracks_time, "chi2_tracks_time", 720, 720, 720, 720, "");
-    Draw_1D_histo_and_canvas(residuals_DCA_ITS_histo, "residuals_DCA_ITS_histo", 720, 720, 720, 720, "");
+    Draw_1D_histo_and_canvas(chi2_TPC_tracks, "chi2_TPC_tracks", 720, 720, 720, 720, "");
+    Draw_1D_histo_and_canvas(chi2_TPC_tracks_xy, "chi2_TPC_tracks_xy", 720, 720, 720, 720, "");
+    Draw_1D_histo_and_canvas(chi2_TPC_tracks_time, "chi2_TPC_tracks_time", 720, 720, 720, 720, "");
+    Draw_1D_histo_and_canvas(residuals_2Point_ITS_histo, "residuals_2Point_ITS_histo", 720, 720, 720, 720, "");
     Draw_1D_histo_and_canvas(residuals_PCAfit_ITS_histo, "residuals_PCAfit_ITS_histo", 720, 720, 720, 720, "");
     Draw_1D_histo_and_canvas(chi2_PCAfit_ITS_histo, "chi2_PCAfit_ITS_histo", 720, 720, 720, 720, "");
 
@@ -965,6 +1035,142 @@ void AnaTrackHitEvent(Long64_t N_events = -1, Int_t event_plot = 0, Int_t flag_I
     }
     //------------------------------------------------------------
 
+    if(saveToTree){
+        cout << "Writing to tree..." << endl;
+        // data_tree_TPC->Write();
+        delete data_tree_TPC;
+        // data_tree_ITS->Write();
+        delete data_tree_ITS;
+        qafileITSTPC->Write();
+        qafileITSTPC->Close();
+        delete qafileITSTPC;
+    }
+
     delete PCA;
+
+}
+
+void AnaResiduals()
+{
+    TFile* inputfile = TFile::Open("QA_tree.root");
+
+    TTree *input_tree = (TTree*)inputfile->Get("residuals_ITS_full");
+    Float_t x,y,z,dx,dy,dz,chi2,npoints;
+
+    input_tree->SetBranchAddress("x",&x);
+    input_tree->SetBranchAddress("y",&y);
+    input_tree->SetBranchAddress("z",&z);
+    input_tree->SetBranchAddress("dca_x",&dx);
+    input_tree->SetBranchAddress("dca_y",&dy);
+    input_tree->SetBranchAddress("dca_z",&dz);
+    input_tree->SetBranchAddress("chi2",&chi2);
+    input_tree->SetBranchAddress("n_points",&npoints);
+
+    Int_t nentries = (Int_t)input_tree->GetEntries();
+    printf("nentries: %d \n",nentries);
+
+
+    //--------------------------------------
+    TH2D* h2D_rad_res_vs_radius = new TH2D("h2D_rad_res_vs_radius","h2D_rad_res_vs_radius",100,0,45,100,-1.0,1.0);
+    TProfile2D* TP2D_rad_res_vs_xy = new TProfile2D("TP2D_rad_res_vs_xy","TP2D_rad_res_vs_xy",100,-45,45,100,-45,45);
+
+    TH2D* h2D_azim_dcax = new TH2D("h2D_azim_dcax","h2D_azim_dcax",50,0,TMath::Pi(),50,-0.05,0.05);
+    TH2D* h2D_azim_dcay = new TH2D("h2D_azim_dcay","h2D_azim_dcay",50,0,TMath::Pi(),50,-0.05,0.05);
+    TH2D* h2D_azim_dcaz = new TH2D("h2D_azim_dcaz","h2D_azim_dcaz",50,0,TMath::Pi(),50,-0.05,0.05);
+    //--------------------------------------
+
+
+
+    //--------------------------------------
+    TVector3 y_axis;
+    y_axis.SetXYZ(0,1,0);
+
+    for(Int_t ientry = 0; ientry < nentries; ientry++)
+    {
+        input_tree->GetEntry(ientry);
+
+        if(fabs(dx) > 1.0 || fabs(dy) > 1.0 || fabs(dz) > 1.0) continue;
+        if(chi2 > 5) continue;
+
+        Float_t radius = TMath::Sqrt(x*x + y*y);
+
+        TVector3 TV3_point;
+        TV3_point.SetXYZ(x,y,0);
+        Double_t mag_TV3_point = TV3_point.Mag();
+        TV3_point *= 1.0/TV3_point.Mag();
+        TVector3 TV3_res;
+        TV3_res.SetXYZ(dx,dy,0);
+        Double_t rad_res = TV3_res.Dot(TV3_point);
+
+        //if(fabs(rad_res) > 5.0)
+        //{
+            //printf(" \n");
+            //printf("rad_res: %4.3f, dx: %4.3f, dy: %4.3f, mag_TV3_point: %4.3f \n",rad_res,dx,dy,mag_TV3_point);
+            //TV3_res.Print();
+            //TV3_point.Print();
+        //}
+
+        h2D_rad_res_vs_radius ->Fill(radius,rad_res);
+        TP2D_rad_res_vs_xy    ->Fill(x,y,rad_res);
+
+        h2D_azim_dcax   ->Fill(TMath::ACos(y_axis.Dot(TV3_point)/TV3_point.Mag()), dx);
+        h2D_azim_dcay   ->Fill(TMath::ACos(y_axis.Dot(TV3_point)/TV3_point.Mag()), dy);
+        h2D_azim_dcaz   ->Fill(TMath::ACos(y_axis.Dot(TV3_point)/TV3_point.Mag()), dz);
+    }
+    //--------------------------------------
+
+
+    //--------------------------------------
+    h2D_rad_res_vs_radius ->GetXaxis()->SetTitle("radius (cm)");
+    h2D_rad_res_vs_radius ->GetYaxis()->SetTitle("dr (cm)");
+    h2D_rad_res_vs_radius ->GetZaxis()->SetTitle("entries");
+    TProfile* TP_rad_res_vs_radius = (TProfile*)h2D_rad_res_vs_radius->ProfileX("TP_rad_res_vs_radius",1,-1);
+    TCanvas* can_h2D_rad_res_vs_radius = Draw_2D_histo_and_canvas(h2D_rad_res_vs_radius,"can_h2D_rad_res_vs_radius",800,600,0.0,0.0,"colz"); // TH2D* hist, TString name, Int_t x_size, Int_t y_size, Double_t min_val, Double_t max_val, TString option
+    can_h2D_rad_res_vs_radius->SetLogz(0);
+    TP_rad_res_vs_radius ->SetLineColor(kRed);
+    TP_rad_res_vs_radius ->SetLineWidth(3);
+    TP_rad_res_vs_radius ->DrawCopy("same hist");
+    //--------------------------------------
+
+
+    //--------------------------------------
+    TP2D_rad_res_vs_xy ->GetXaxis()->SetTitle("x (cm)");
+    TP2D_rad_res_vs_xy ->GetYaxis()->SetTitle("y (cm)");
+    TP2D_rad_res_vs_xy ->GetZaxis()->SetTitle("dr (cm)");
+    TCanvas* can_TP2D_rad_res_vs_xy = Draw_2D_histo_and_canvas((TH2D*)TP2D_rad_res_vs_xy,"can_TP2D_rad_res_vs_xy",800,600,0.0,0.0,"colz"); // TH2D* hist, TString name, Int_t x_size, Int_t y_size, Double_t min_val, Double_t max_val, TString option
+    can_TP2D_rad_res_vs_xy->SetLogz(0);
+    //--------------------------------------
+
+    //--------------------------------------
+    h2D_azim_dcax ->GetXaxis()->SetTitle("#phi (rad)");
+    h2D_azim_dcax ->GetYaxis()->SetTitle("dca_x (cm)");
+    h2D_azim_dcax ->GetZaxis()->SetTitle("entries");
+    TProfile* prof_dcax = h2D_azim_dcax ->ProfileX("prof_dcax",1,-1);
+    TCanvas* can_azim_dcax = Draw_2D_histo_and_canvas(h2D_azim_dcax,"can_azim_dcax",800,600,0.0,0.0,"colz");
+    can_azim_dcax->SetLogz(0);
+    prof_dcax ->SetLineColor(kRed);
+    prof_dcax ->SetLineWidth(3);
+    prof_dcax ->DrawCopy("same hist");
+
+    h2D_azim_dcay ->GetXaxis()->SetTitle("#phi (rad)");
+    h2D_azim_dcay ->GetYaxis()->SetTitle("dca_y (cm)");
+    h2D_azim_dcay ->GetZaxis()->SetTitle("entries");
+    TProfile* prof_dcay = h2D_azim_dcaz ->ProfileX("prof_dcay",1,-1);
+    TCanvas* can_azim_dcay = Draw_2D_histo_and_canvas(h2D_azim_dcay,"can_azim_dcay",800,600,0.0,0.0,"colz");
+    can_azim_dcay->SetLogz(0);
+    prof_dcay ->SetLineColor(kRed);
+    prof_dcay ->SetLineWidth(3);
+    prof_dcay ->DrawCopy("same hist");
+
+    h2D_azim_dcaz ->GetXaxis()->SetTitle("#phi (rad)");
+    h2D_azim_dcaz ->GetYaxis()->SetTitle("dca_z (cm)");
+    h2D_azim_dcaz ->GetZaxis()->SetTitle("entries");
+    TProfile* prof_dcaz = h2D_azim_dcaz ->ProfileX("prof_dcaz",1,-1);
+    TCanvas* can_azim_dcaz = Draw_2D_histo_and_canvas(h2D_azim_dcaz,"can_azim_dcaz",800,600,0.0,0.0,"colz");
+    can_azim_dcaz->SetLogz(0);
+    prof_dcaz ->SetLineColor(kRed);
+    prof_dcaz ->SetLineWidth(3);
+    prof_dcaz ->DrawCopy("same hist");
+    //--------------------------------------
 
 }
