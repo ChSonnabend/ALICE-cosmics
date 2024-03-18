@@ -2714,12 +2714,6 @@ Double_t calculateMinimumDistanceStraightToPoint(TVector3 &base, TVector3 &dir,
 //----------------------------------------------------------------------------------------
 
 
-//----------------------------------------------------------------------------------------
-bool straight_intersect_circle(TVector3& dir, TVector3& base, float radius){
-    return (std::pow(dir[0]*base[0] + dir[1]*base[1] , 2) / (std::pow(dir[0],2) + std::pow(dir[1], 2))) - std::pow(base[0],2) - std::pow(base[1],2) + std::pow(radius, 2) >= 0;
-}
-//----------------------------------------------------------------------------------------
-
 
 //----------------------------------------------------------------------------------------
 TVector3 calculateDCA_vec_StraightToPoint(TVector3 &base, TVector3 &dir, TVector3 &point)
@@ -2739,41 +2733,6 @@ TVector3 calculateDCA_vec_StraightToPoint(TVector3 &base, TVector3 &dir, TVector
 }
 //----------------------------------------------------------------------------------------
 
-
-//----------------------------------------------------------------------------------------
-TVector3 calculateDCA_vec_StraightToPoint_perD(TVector3 &base, TVector3 &dir, TVector3 &point, Int_t dim=0)
-{
-
-    return point - (((point[dim]-base[dim])/dir[dim]) * dir + base);
-}
-//----------------------------------------------------------------------------------------
-
-
-//----------------------------------------------------------------------------------------
-vector<TVector3> unique_ITS_hit(vector<TVector3> in) {
-
-    vector<TVector3> out;
-    for(auto elem_in : in){
-        if(out.empty()){
-            out.push_back(elem_in);
-        }
-        else{
-            bool add_current_elem = true;
-            for(auto elem_out : out){
-                if(elem_out[0]==elem_in[0]){
-                    if(elem_out[1]==elem_in[1]){
-                        if(elem_out[2]==elem_in[2]){
-                            add_current_elem = false;
-                        }
-                    }
-                }
-            }
-            if(add_current_elem) out.push_back(elem_in);
-        }
-    }
-    return out;
-}
-//----------------------------------------------------------------------------------------
 
 
 
@@ -5142,7 +5101,7 @@ TCanvas* Draw_2D_histo_and_canvas(TH2D* hist, TString name, Int_t x_size, Int_t 
     canvas->SetFillColor(10);
     canvas->SetTopMargin(0.05);
     canvas->SetBottomMargin(0.2);
-    canvas->SetRightMargin(0.2);
+    canvas->SetRightMargin(0.22);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);
@@ -5165,29 +5124,6 @@ TCanvas* Draw_2D_histo_and_canvas(TH2D* hist, TString name, Int_t x_size, Int_t 
 //----------------------------------------------------------------------------------------
 
 
-//----------------------------------------------------------------------------------------
-TCanvas* Draw_2D_ntuple_and_canvas(TNtuple* ntuple, TString name, Int_t x_size, Int_t y_size, TString option)
-{
-    TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
-    // canvas->SetFillColor(10);
-    canvas->SetTopMargin(0.05);
-    canvas->SetBottomMargin(0.25);
-    canvas->SetRightMargin(0.22);
-    canvas->SetLeftMargin(0.2);
-    canvas->SetTicks(1,1);
-    canvas->SetGrid(0,0);
-    gStyle->SetPalette(kRainBow);
-
-    ntuple->SetMarkerStyle(8);
-    ntuple->SetMarkerSize(0.7);
-    ntuple->SetTitle("");
-    ntuple->Draw(option.Data(), "", "colz");
-
-    return canvas;
-}
-//----------------------------------------------------------------------------------------
-
-
 
 //----------------------------------------------------------------------------------------
 TCanvas* Draw_1D_histo_and_canvas(TH1D* hist, TString name, Int_t x_size, Int_t y_size,
@@ -5196,8 +5132,8 @@ TCanvas* Draw_1D_histo_and_canvas(TH1D* hist, TString name, Int_t x_size, Int_t 
     TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
     canvas->SetFillColor(10);
     canvas->SetTopMargin(0.1);
-    canvas->SetBottomMargin(0.5);
-    canvas->SetRightMargin(0.5);
+    canvas->SetBottomMargin(0.2);
+    canvas->SetRightMargin(0.05);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);
@@ -5206,10 +5142,10 @@ TCanvas* Draw_1D_histo_and_canvas(TH1D* hist, TString name, Int_t x_size, Int_t 
     hist->SetTitle("");
     hist->GetXaxis()->SetTitleOffset(1.2);
     hist->GetYaxis()->SetTitleOffset(1.2);
-    // hist->GetXaxis()->SetLabelSize(0.06);
-    // hist->GetYaxis()->SetLabelSize(0.06);
-    // hist->GetXaxis()->SetTitleSize(0.06);
-    // hist->GetYaxis()->SetTitleSize(0.06);
+    hist->GetXaxis()->SetLabelSize(0.06);
+    hist->GetYaxis()->SetLabelSize(0.06);
+    hist->GetXaxis()->SetTitleSize(0.06);
+    hist->GetYaxis()->SetTitleSize(0.06);
     hist->GetXaxis()->SetNdivisions(505,'N');
     hist->GetYaxis()->SetNdivisions(505,'N');
     hist->GetXaxis()->CenterTitle();
@@ -5232,8 +5168,8 @@ TCanvas* Draw_1D_graph_and_canvas(TGraph* hist, TString name, Int_t x_size, Int_
     TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
     canvas->SetFillColor(10);
     canvas->SetTopMargin(0.1);
-    canvas->SetBottomMargin(0.5);
-    canvas->SetRightMargin(0.5);
+    canvas->SetBottomMargin(0.2);
+    canvas->SetRightMargin(0.05);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);
@@ -5269,8 +5205,8 @@ TCanvas* Draw_1D_profile_and_canvas(TProfile* hist, TString name, Int_t x_size, 
     TCanvas* canvas = new TCanvas(name.Data(),name.Data(),10,10,x_size,y_size);
     canvas->SetFillColor(10);
     canvas->SetTopMargin(0.1);
-    canvas->SetBottomMargin(0.25);
-    canvas->SetRightMargin(0.25);
+    canvas->SetBottomMargin(0.2);
+    canvas->SetRightMargin(0.05);
     canvas->SetLeftMargin(0.2);
     canvas->SetTicks(1,1);
     canvas->SetGrid(0,0);
@@ -5281,8 +5217,8 @@ TCanvas* Draw_1D_profile_and_canvas(TProfile* hist, TString name, Int_t x_size, 
     hist->SetMarkerColor(color);
     hist->SetMarkerStyle(style);
     if(min_val != max_val) hist->GetYaxis()->SetRangeUser(min_val,max_val);
-    hist->GetXaxis()->SetTitleOffset(0.5);
-    hist->GetYaxis()->SetTitleOffset(0.5);
+    hist->GetXaxis()->SetTitleOffset(1.2);
+    hist->GetYaxis()->SetTitleOffset(1.2);
     hist->GetXaxis()->SetLabelSize(0.06);
     hist->GetYaxis()->SetLabelSize(0.06);
     hist->GetXaxis()->SetTitleSize(0.06);
